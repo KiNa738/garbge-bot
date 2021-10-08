@@ -1,15 +1,13 @@
 const config = require("../config")
 const Discord = require("discord.js")
-const bot = new Discord.Client()
 const { getString } = require("../utils/lang")
 const {getUserById, DM} = require("../utils/functions")
-//admins = ["252100217959219200"]
 module.exports = {
     name: "report",
     description: "Use this command to report for admins",
     usage: "`"+config.prefix+"report`",
     aliases: 'rep',
-    execute: async (message, args) => {
+    execute: async (message, args, bot) => {
         message.react("👍")
         const questions = [
             '1. CHOOSE A REQUEST TYPE',
@@ -44,33 +42,23 @@ module.exports = {
             return m.author.id === message.author.id
         }
 
-        const collector = new Discord.MessageCollector(message.channel, filter, {
-            time: 1000 * 10, //1m
+        const collector = new Discord.MessageCollector(NewMessage.channel, filter, {
+            time: 1000 * 180, //1m
         })
-        // message.author.send(questions[counter++])
-        collector.on('collect', (m) => {
-          if (counter < questions.length) {
-            m.author.send(questions[counter++])
-          }
+        collector.on('collect', async (m) => {
+        if (counter < questions.length)  m.author.send(questions[counter++])
+        else collector.stop()
         })
         collector.on('end', async (collected) => {
             console.log(`Collected ${collected.size} messages`)
-      
-             if (collected.size < questions.length) {
-               message.reply('You did not answer the questions in time')
-               return
-             }
-      
             let counter = 0
             let values = [];
             collected.forEach((value) => {
-              //console.log(questions[counter++] ,value.content)
               values.push(value.content);
             })
-            const embed2 =  new Discord.MessageEmbed().setColor("#EBCBD0").setTitle(`Report From ${message.author.id}`).addFields({ name: questions[0], value: types[values[0]] , inline: true }, { name: questions[1], value: values[1] , inline: false } , { name: questions[2], value: values[2] , inline: false } , { name: questions[3], value: values[3] , inline: false } )
-            const user = await getUserById(bot,"252100217959219200")
-            console.log(user)
-            await DM(user,embed2);
+            const embed2 =  new Discord.MessageEmbed().setColor("#EBCBD0").setTitle(`Report From ${message.author.tag}`).addFields({ name: questions[0], value: types[values[0]-1] , inline: true }, { name: questions[1], value: values[1] , inline: false } , { name: questions[2], value: values[2] , inline: false } , { name: questions[3], value: values[3] , inline: false } ).setFooter(message.author.id, message.author.displayAvatarURL())
+            config.admins.forEach(async admin => DM( await getUserById(bot, admin), embed2))
+            message.author.send("Your ticket was sent successfully!")
         })
     }
 }
