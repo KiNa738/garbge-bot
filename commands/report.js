@@ -14,10 +14,10 @@ const questions = [
 ]
 const emoji = ["1️⃣", "2️⃣", "3️⃣", "4️⃣"]
 const types = [
-  "1. BILLING ISSUES",
-  "2. GET TECH HELP",
-  "3. RECOVER MY ACCOUNT",
-  "4. REPORT A PLAYER",
+  "BILLING ISSUES",
+  "GET TECH HELP",
+  "RECOVER MY ACCOUNT",
+  "REPORT A PLAYER",
 ]
 
 module.exports = {
@@ -31,7 +31,7 @@ module.exports = {
       "#7289DA",
       questions[0],
       null,
-      types.map((x) => ({ name: x, value: "\u200B" })),
+      types.map((x, i) => ({ name: `${i + 1}.${x}`, value: "\u200B" })),
       null,
       "React to select",
       null,
@@ -61,7 +61,7 @@ module.exports = {
         const collector = new Discord.MessageCollector(
           NewMessage.channel,
           filter,
-          { time: 1000 * 180 }
+          { time: 1000 * 180}
         )
         collector.on("collect", async (m) => {
           if (counter < questions.length) DM(m.author, questions[counter++])
@@ -69,6 +69,7 @@ module.exports = {
         })
         collector.on("end", async (collected) => {
           let values = []
+          if (collected.size < 3) return message.reply("report failed")
           collected.forEach((value) => {
             values.push(value.content)
           })
