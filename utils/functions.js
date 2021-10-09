@@ -1,42 +1,5 @@
-const mysql = require("mysql")
+const log = require("./log")
 
-const log = require("../utils/log.js")
-
-let con = mysql.createConnection({
-    host: process.env.MYSQL_HOST,
-    user: process.env.MYSQL_USER,
-    password: process.env.MYSQL_PASSWORD,
-    database: process.env.MYSQL_DATABASE,
-});
-
-con.connect((err) => {
-    if(err) throw err
-    log(`Connected to mysql-${process.env.MYSQL_DATABASE}`, "info")
-})
-
-
-/**
- * This loggs everything (check config.debug_level for more options)
- * @param {String} message the log message
- * @param {String} type message type (debug, info, warning, error). messages are debug by default.
- */
- exports.log = (message, type) => {
-    switch(type) {
-        default:
-        case "debug":
-            console.log(`[Debug]: `.cyan+`${message}`)
-            break
-        case "info":
-            console.log(`[Info]: ${message}`)
-            break
-        case "warning":
-            console.log(`[Warning]: `.yellow+`${message} `)
-            break
-        case "error":
-            console.log(`[Error]: `.red+`${message}`)
-            break
-    }
-}
 /**
  * Fetches a DJS channel object by ID. you can use this object to edit channel permissions
  * or read its history etc...
@@ -47,7 +10,7 @@ con.connect((err) => {
 exports.getChannelById = async (bot, id) => {
     let channel = await bot.channels.cache.get(id)
     if(channel) return channel
-    channel = await bot.channels.fetch(id).catch(err => this.log(`error fetching channel ${id}. ${err.message}`, "error"))
+    channel = await bot.channels.fetch(id).catch(err => log(`error fetching channel ${id}. ${err.message}`, "error"))
     return channel
 }
 
@@ -77,7 +40,7 @@ exports.getUserById = async (bot, id) => {
         user = await bot.users.fetch(id)
         return user
     } catch(err) {
-        this.log(`getUserById: ${err.message}`, "error")
+        log(`getUserById: ${err.message}`, "error")
     }
 }
 
@@ -115,7 +78,7 @@ exports.DM = async(user, message) => {
     if(!user) return 0
     // if(typeof user === "string") user = await this.getUserById(user)
     const mes = await user.send(message).catch(err => {
-        if(process.env.debug_level > 1) this.log(`RagnabotAPI: attempting to DM ${user.username} with id ${user.id}: ${err.message}`, "warning")
+        if(process.env.debug_level > 1) log(`RagnabotAPI: attempting to DM ${user.username} with id ${user.id}: ${err.message}`, "warning")
         return false
     })
     return mes
@@ -179,88 +142,3 @@ exports.getMemberByTag = async (guild, tag) => {
     const member = members.find(m => m.user.discriminator == tag.split("#")[1])
     return member
 }
-
-//DB commands
-
-const operators = ["=", ">", "<" , ">=", "<=", "<>", "&", "|", "^"]
-
-const query = (sql) => {
-    return new Promise((resolve, reject) => {
-        con.query(sql, (err, res) => {
-            if(err) {
-                if(process.env.debug_level > 0) log(`query: ${sql}\n${err.message}\n`, "error")
-                return reject(err)
-            }
-            if(process.env.debug_level >= 4) log(`query: ${sql}`, "debug")
-            return resolve(res)
-        })
-    })
-}
-
-const select = (data, table, condition, limit = null) => {
-    return new Promise((resolve, reject) => {
-        let sql = `select ${data} from ${table} where ${condition} ${limit ? "limit "+limit : ""}`
-        con.query(sql, (err, res) => {
-            if(err) {
-                if(process.env.debug_level > 0) log(`select_query: ${sql}\n${err.message}\n`, "error")
-                return reject(err)
-            }
-            if(process.env.debug_level >= 4) log(`select_query: ${sql}`, "debug")
-            return resolve(res)
-        })
-    })
-}
-
-const update = (table, column, newValue, condition = null) => {
-    return new Promise((resolve, reject) => {
-        let sql = `update ${table} set ${column} = ${newValue}`
-        if(condition) sql += ` where ${condition}`
-        con.query(sql, (err, res) => {
-            if(err) {
-                if(process.env.debug_level > 0) log(`update_query: ${sql}\n${err.message}\n`, "error")
-                return reject(err)
-            }
-            if(process.env.debug_level >= 4) log(`update_query: ${sql}`, "debug")
-            return resolve(res)
-        })
-    })
-}
-
-const insert = (table, cols, vals) => {
-    let columns = ""
-    cols.forEach((col, i) => {
-        i == cols.length-1 ? columns += col : columns += col+", "
-    })
-    let values = ""
-    vals.forEach((val, i) => {
-        i == vals.length-1 ? values += val : values += val+", "
-    })
-    return new Promise((resolve, reject) => {
-        let sql = `INSERT INTO ${table}(${columns}) VALUES (${values})`
-        con.query(sql, (err, res) => {
-            if(err) {
-                if(process.env.debug_level > 0) log(`insert_query: ${sql}\n${err.message}\n`, "error")
-                return reject(err)
-            }
-            if(process.env.debug_level >= 4) log(`insert_query: ${sql}`, "debug")
-            return resolve(res)
-        })
-    })
-}
-
-const delete_ = (table, condition) => {
-    let sql = `delete from ${table}`
-    if(condition) sql += ` WHERE ${condition}`
-    return new Promise((resolve, reject) => {
-        con.query(sql, (err, res) => {
-            if(err) {
-                if(process.env.debug_level > 0) log(`delete_query: ${sql}\n${err.message}\n`, "error")
-                return reject(err)
-            }
-            if(process.env.debug_level >= 4) log(`delete_query: ${sql}`, "debug")
-            return resolve(res)
-        })
-    })
-}
-
-module.exports = { select, update, insert, delete_, query }
