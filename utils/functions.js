@@ -1,3 +1,20 @@
+const mysql = require("mysql")
+
+const log = require("../utils/log.js")
+
+let con = mysql.createConnection({
+    host: process.env.MYSQL_HOST,
+    user: process.env.MYSQL_USER,
+    password: process.env.MYSQL_PASSWORD,
+    database: process.env.MYSQL_DATABASE,
+});
+
+con.connect((err) => {
+    if(err) throw err
+    log(`Connected to mysql-${process.env.MYSQL_DATABASE}`, "info")
+})
+
+
 /**
  * This loggs everything (check config.debug_level for more options)
  * @param {String} message the log message
@@ -162,3 +179,88 @@ exports.getMemberByTag = async (guild, tag) => {
     const member = members.find(m => m.user.discriminator == tag.split("#")[1])
     return member
 }
+
+//DB commands
+
+const operators = ["=", ">", "<" , ">=", "<=", "<>", "&", "|", "^"]
+
+const query = (sql) => {
+    return new Promise((resolve, reject) => {
+        con.query(sql, (err, res) => {
+            if(err) {
+                if(process.env.debug_level > 0) log(`query: ${sql}\n${err.message}\n`, "error")
+                return reject(err)
+            }
+            if(process.env.debug_level >= 4) log(`query: ${sql}`, "debug")
+            return resolve(res)
+        })
+    })
+}
+
+const select = (data, table, condition, limit = null) => {
+    return new Promise((resolve, reject) => {
+        let sql = `select ${data} from ${table} where ${condition} ${limit ? "limit "+limit : ""}`
+        con.query(sql, (err, res) => {
+            if(err) {
+                if(process.env.debug_level > 0) log(`select_query: ${sql}\n${err.message}\n`, "error")
+                return reject(err)
+            }
+            if(process.env.debug_level >= 4) log(`select_query: ${sql}`, "debug")
+            return resolve(res)
+        })
+    })
+}
+
+const update = (table, column, newValue, condition = null) => {
+    return new Promise((resolve, reject) => {
+        let sql = `update ${table} set ${column} = ${newValue}`
+        if(condition) sql += ` where ${condition}`
+        con.query(sql, (err, res) => {
+            if(err) {
+                if(process.env.debug_level > 0) log(`update_query: ${sql}\n${err.message}\n`, "error")
+                return reject(err)
+            }
+            if(process.env.debug_level >= 4) log(`update_query: ${sql}`, "debug")
+            return resolve(res)
+        })
+    })
+}
+
+const insert = (table, cols, vals) => {
+    let columns = ""
+    cols.forEach((col, i) => {
+        i == cols.length-1 ? columns += col : columns += col+", "
+    })
+    let values = ""
+    vals.forEach((val, i) => {
+        i == vals.length-1 ? values += val : values += val+", "
+    })
+    return new Promise((resolve, reject) => {
+        let sql = `INSERT INTO ${table}(${columns}) VALUES (${values})`
+        con.query(sql, (err, res) => {
+            if(err) {
+                if(process.env.debug_level > 0) log(`insert_query: ${sql}\n${err.message}\n`, "error")
+                return reject(err)
+            }
+            if(process.env.debug_level >= 4) log(`insert_query: ${sql}`, "debug")
+            return resolve(res)
+        })
+    })
+}
+
+const delete_ = (table, condition) => {
+    let sql = `delete from ${table}`
+    if(condition) sql += ` WHERE ${condition}`
+    return new Promise((resolve, reject) => {
+        con.query(sql, (err, res) => {
+            if(err) {
+                if(process.env.debug_level > 0) log(`delete_query: ${sql}\n${err.message}\n`, "error")
+                return reject(err)
+            }
+            if(process.env.debug_level >= 4) log(`delete_query: ${sql}`, "debug")
+            return resolve(res)
+        })
+    })
+}
+
+module.exports = { select, update, insert, delete_, query }

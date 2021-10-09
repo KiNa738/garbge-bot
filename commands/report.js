@@ -1,57 +1,66 @@
 const config = require("../config")
 const Discord = require("discord.js")
 const { getString } = require("../utils/lang")
-const {getUserById, DM} = require("../utils/functions")
+const { getUserById, DM, log, insert } = require("../utils/functions")
+const makeEmbed = require("../utils/makeEmbed")
+
+//constants
+const questions = [
+    '1. CHOOSE A REQUEST TYPE',
+    '2. SUBJECT',
+    '3. DESCRIPTION',
+    '4. ANY LINK (OPTINAL)'
+]
+const emoji = ['1️⃣', '2️⃣', '3️⃣', '4️⃣']
+const types = ["1. BILLING ISSUES", "2. GET TECH HELP", "3. RECOVER MY ACCOUNT", "4. REPORT A PLAYER"]
+
 module.exports = {
     name: "report",
     description: "Use this command to report for admins",
-    usage: "`"+config.prefix+"report`",
+    usage: "`" + config.prefix + "report`",
     aliases: 'rep',
     execute: async (message, args, bot) => {
-        message.react("👍")
-        const questions = [
-            '1. CHOOSE A REQUEST TYPE',
-            '2. SUBJECT',
-            '3. DESCRIPTION',
-            '4. ANY LINK (OPTINAL)'
-        ]
-        let type = ""
         let counter = 1
-        const emoji = ['1️⃣','2️⃣','3️⃣','4️⃣']
-        const types = ["BILLING ISSUES","GET TECH HELP","RECOVER MY ACCOUNT","REPORT A PLAYER"]
-        const embed = new Discord.MessageEmbed().setColor("#7289DA").setTitle(questions[0]).addFields({ name: '1- BILLING ISSUES', value:'\u200B' , inline: true }, { name: '2- GET TECH HELP', value:'\u200B' , inline: false } , { name: '3- RECOVER MY ACCOUNT', value:'\u200B' , inline: false } , { name: '4- REPORT A PLAYER', value:'\u200B' , inline: false } ).setFooter("react to select")
-        const NewMessage = await message.author.send(embed)
+        const embed = await makeEmbed("#7289DA", questions[0], null, types.map(x => ({ name: x, value: '\u200B' })), null, 'React to select', null, null)
+        const NewMessage = await DM(message.author, embed)
+        if (!NewMessage) {
+            log(`main: error executing a command.`, "error")
+            return message.reply(`DM me with the command!`)
+        }
+        message.react("👍")
         emoji.forEach(element => NewMessage.react(element))
         const react = (reaction, user) => {
-            return emoji.includes(reaction.emoji.name) && user.id === message.author.id;
-        };
-        NewMessage.awaitReactions(react, { max: 1, time: 1000 * 180})
-        .then(collected => {
-            const reaction = collected.first();
-            if(emoji.includes(reaction._emoji.name)){
-                type = types[emoji.indexOf(reaction._emoji.name)];
-                message.author.send(questions[counter++])
-            }
-        })
-        const filter = (m) => {
-            return m.author.id === message.author.id
+            return emoji.includes(reaction.emoji.name) && user.id === message.author.id
         }
-        const collector = new Discord.MessageCollector(NewMessage.channel, filter, {
-            time: 1000 * 180, //3m
-        })
-        collector.on('collect', async (m) => {
-        if (counter < questions.length)  m.author.send(questions[counter++])
-        else collector.stop()
-        })
-        collector.on('end', async (collected) => {
-            let counter = 0
-            let values = [];
-            collected.forEach((value) => {
-              values.push(value.content);
+        NewMessage.awaitReactions(react, { max: 1, time: 1000 * 180 })
+            .then(collected => {
+                const reaction = collected.first();
+                if (emoji.includes(reaction._emoji.name)) {
+                    DM(message.author, questions[counter++])
+                }
+                const filter = (m) => {
+                    return m.author.id === message.author.id
+                }
+                const collector = new Discord.MessageCollector(NewMessage.channel, filter, { time: 1000 * 180 })
+                collector.on('collect', async (m) => {
+                    if (counter < questions.length) DM(m.author, questions[counter++])
+                    else collector.stop()
+                })
+                collector.on('end', async (collected) => {
+                    let counter = 0
+                    let values = [];
+                    collected.forEach((value) => {
+                        values.push(value.content);
+                    })
+                    var today = new Date();
+                    var date = today.getFullYear() + '-' + (today.getMonth() + 1) + '-' + today.getDate();
+                    var time = today.getHours() + ":" + today.getMinutes() + ":" + today.getSeconds();
+                    var dateTime = date + ' ' + time;
+                    const embed2 = new Discord.MessageEmbed().setColor("#EBCBD0").setTitle(`Report From ${message.author.tag}`).addFields({ name: questions[0], value: types[emoji.indexOf(reaction._emoji.name)], inline: true }, { name: questions[1], value: values[0], inline: false }, { name: questions[2], value: values[1], inline: false }, { name: questions[3], value: values[2], inline: false }, { name: `Status`, value: `New`, inline: false }).setFooter(message.author.id, message.author.displayAvatarURL())
+                    insert(`tickets`, [`time`,`discord_id`, `discord_name`, `status`, `type`, `subject`, `desc`, `links`],[`'${dateTime}'`, `'${message.author.id}'`, `'${message.author.tag}'`, `'New'`, `'${types[emoji.indexOf(reaction._emoji.name)]}'`, `'${values[0]}'`, `'${values[1]}'`, `'${values[2]}'`])
+                    config.admins.forEach(async admin => DM(await getUserById(bot, admin), embed2))
+                    DM(message.author, "Your ticket was sent successfully!")
+                })
             })
-            const embed2 =  new Discord.MessageEmbed().setColor("#EBCBD0").setTitle(`Report From ${message.author.tag}`).addFields({ name: questions[0], value: type , inline: true }, { name: questions[1], value: values[0] , inline: false } , { name: questions[2], value: values[1] , inline: false } , { name: questions[3], value: values[2] , inline: false } ).setFooter(message.author.id, message.author.displayAvatarURL())
-            config.admins.forEach(async admin => DM( await getUserById(bot, admin), embed2))
-            message.author.send("Your ticket was sent successfully!")
-        })
     }
 }
