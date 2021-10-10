@@ -1,5 +1,9 @@
 const log = require("./log")
 
+exports.delay = async (time) => {
+    return await new Promise(resolve => setTimeout(resolve, time))
+}
+
 /**
  * Fetches a DJS channel object by ID. you can use this object to edit channel permissions
  * or read its history etc...

@@ -1,8 +1,10 @@
 require("dotenv").config()
 
 module.exports = {
+  //The Category ID that the private report channels will move to
+  reportscategoryid: ['896764640825073715'],
   // A list of Discord IDs that can use admin commands
-  admins: [252100217959219200],
+  admins: ['252100217959219200'],
   // The display name of your bot (can also be set through Discord developer portal.)
   bot_name: "Marwan",
   // Bot activity. Displayed as playing ... in Discord.
